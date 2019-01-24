@@ -157,7 +157,7 @@ public class MainActivity extends AppCompatActivity implements EmpaDataDelegate,
         ibi_mean = (TextView) findViewById(R.id.ibi_mean);
 
         stress_level = (TextView) findViewById(R.id.stress_level);
-        
+
         accLevelLabel = (TextView) findViewById(R.id.activity_level);
 
         final Button disconnectButton = findViewById(R.id.disconnectButton);
@@ -226,6 +226,7 @@ public class MainActivity extends AppCompatActivity implements EmpaDataDelegate,
 
     private void initCalculateTimer() {
         Timer timer = new Timer();
+        Timer timerAcc = new Timer();
         TimerTask calculateTask = new TimerTask() {
             @Override
             public void run() {
@@ -233,8 +234,16 @@ public class MainActivity extends AppCompatActivity implements EmpaDataDelegate,
             }
         };
 
+        TimerTask calculateTaskAcc = new TimerTask() {
+            @Override
+            public void run() {
+                calculateResultAcc();
+            }
+        };
+
 //        timer.schedule(calculateTask, 0l, 1000 * 60 * 2);   // every 2 minutes
-        timer.schedule(calculateTask, 0l, 1000 * 20);   // every 20 seconds
+        timer.schedule(calculateTask, 0l, 1000 * 45);   // every 40 seconds
+        timerAcc.schedule(calculateTaskAcc, 0l, 1000 * 15);   // every 15 seconds
 
     }
 
@@ -269,12 +278,6 @@ public class MainActivity extends AppCompatActivity implements EmpaDataDelegate,
     private void calculateResult() {
         Date date = new Date();
         Result result = new Result();
-        ArrayList<SensorData> xs = this.getDatabaseHelper().getSensorDatas(SensorData.Type.ACC_X, date);
-        ArrayList<SensorData> ys = this.getDatabaseHelper().getSensorDatas(SensorData.Type.ACC_Y, date);
-        ArrayList<SensorData> zs = this.getDatabaseHelper().getSensorDatas(SensorData.Type.ACC_Z, date);
-
-        final double magnitude = result.calculateAcc(xs, ys, zs);
-
 
         ArrayList<SensorData> edas = this.getDatabaseHelper().getSensorDatas(SensorData.Type.EDA, date);
         result.calculateEDA(edas);
@@ -291,7 +294,6 @@ public class MainActivity extends AppCompatActivity implements EmpaDataDelegate,
             @Override
             public void run() {
 
-                accMagLabel.setText("" + magnitude);
                 ibi_mean.setText("" + meanHR);
 
                 // STRESS LEVEL TRESHOLDS
@@ -305,21 +307,53 @@ public class MainActivity extends AppCompatActivity implements EmpaDataDelegate,
                     stress_level.setText("LOW");
                 }
 
-                if (magnitude > 70) {
-                    accLevelLabel.setText("HIGH");
-                } else if (magnitude < 40) {
-                    accLevelLabel.setText("LOW");
-                } else {
-                    accLevelLabel.setText("MEDIUM");
-                }
-                
-                Toast.makeText(MainActivity.this, "Results are calculated", Toast.LENGTH_SHORT).show();
+
+                Toast.makeText(MainActivity.this, "IBI results are calculated", Toast.LENGTH_SHORT).show();
                 updateCountLabels();
 
             }
         });
 
         this.getDatabaseHelper().deleteSensorDatas();
+
+    }
+
+    private void calculateResultAcc() {
+        Date date = new Date();
+        Result result = new Result();
+        ArrayList<SensorData> xs = this.getDatabaseHelper().getSensorDatas(SensorData.Type.ACC_X, date);
+        ArrayList<SensorData> ys = this.getDatabaseHelper().getSensorDatas(SensorData.Type.ACC_Y, date);
+        ArrayList<SensorData> zs = this.getDatabaseHelper().getSensorDatas(SensorData.Type.ACC_Z, date);
+
+        final double magnitude = result.calculateAcc(xs, ys, zs);
+
+        this.getDatabaseHelper().insertResult(result);
+
+
+        runOnUiThread(new Runnable() {
+
+            @Override
+            public void run() {
+
+                accMagLabel.setText("" + magnitude);
+
+                if (magnitude > 70) {
+                    accLevelLabel.setText("HIGH");
+                } else if (magnitude < 65) {
+                    accLevelLabel.setText("LOW");
+                } else {
+                    accLevelLabel.setText("MEDIUM");
+                }
+
+                Toast.makeText(MainActivity.this, "Acc results are calculated", Toast.LENGTH_SHORT).show();
+                updateCountLabels();
+
+            }
+        });
+
+        this.getDatabaseHelper().deleteSensorDatas(SensorData.Type.ACC_X);
+        this.getDatabaseHelper().deleteSensorDatas(SensorData.Type.ACC_Y);
+        this.getDatabaseHelper().deleteSensorDatas(SensorData.Type.ACC_Z);
 
     }
 
